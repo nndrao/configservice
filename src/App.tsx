@@ -105,7 +105,7 @@ const initialConfigurations: Configuration[] = [
 function App() {
   const [nodes, setNodes] = useState<ConfigNode[]>(initialNodes);
   const [configurations, setConfigurations] = useState<Configuration[]>(initialConfigurations);
-  const [selectedNode, setSelectedNode] = useState<ConfigNode>(initialNodes[0]);
+  const [selectedNode, setSelectedNode] = useState<ConfigNode | null>(initialNodes[0]);
   const [selectedConfigs, setSelectedConfigs] = useState<Configuration[]>([]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
@@ -158,6 +158,13 @@ function App() {
       }));
   }, [selectedNode, nodes, configurations]);
 
+  const currentApplication = useMemo(() => {
+    if (!selectedNode) return initialNodes[0];
+    // Get the chain of nodes from root to current node
+    const chain = getParentChain(selectedNode.id);
+    return chain[0] || initialNodes[0];
+  }, [selectedNode]);
+
   const handleCreateNode = (type: string, name: string) => {
     const newNode: ConfigNode = {
       id: crypto.randomUUID(),
@@ -209,10 +216,11 @@ function App() {
     setConfigurations(updatedConfigurations);
     setSelectedConfigs([]);
     setMoveDialogOpen(false);
+    setSelectedNode(destinationNode);
   };
 
   const handleCopyConfigurations = (destinationNode: ConfigNode) => {
-    // When copying, generate new IDs
+    // Allow copying rows within the same node. When copying, generate new IDs. This supports copying rows even when the destination node is the same as the current node.
     const copiedConfigurations = selectedConfigs.map(config => ({
       ...config,
       id: crypto.randomUUID(), // Generate new ID for copied configurations
@@ -224,6 +232,7 @@ function App() {
     setConfigurations([...configurations, ...copiedConfigurations]);
     setSelectedConfigs([]);
     setCopyDialogOpen(false);
+    setSelectedNode(destinationNode);
   };
 
   const handleDeleteConfigurations = () => {
@@ -259,7 +268,7 @@ function App() {
             <ConfigurationTree
               nodes={nodes}
               selectedNode={selectedNode}
-              onNodeSelect={(node) => node && setSelectedNode(node)}
+              onNodeSelect={setSelectedNode}
             />
           </div>
         </div>
@@ -268,7 +277,7 @@ function App() {
           <div className="p-6 border-b">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium text-gray-900">
-                Settings for <span className="font-semibold">{selectedNode?.name || 'No node selected'}</span>
+                Settings for <span className="font-semibold">{selectedNode ? selectedNode.name : 'No node selected'}</span>
               </h2>
               <div className="flex gap-3">
                 <Button
@@ -322,7 +331,7 @@ function App() {
             <div className="rounded-lg border shadow-sm overflow-hidden h-full">
               <ConfigurationGrid
                 configurations={filteredConfigurations}
-                selectedNode={selectedNode}
+                selectedNode={selectedNode || undefined}
                 onSelectionChanged={handleSelectionChanged}
               />
             </div>
@@ -334,7 +343,7 @@ function App() {
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onCreateNode={handleCreateNode}
-        selectedNode={selectedNode}
+        selectedNode={selectedNode ?? undefined}
         existingNodes={nodes}
       />
 
@@ -342,7 +351,8 @@ function App() {
         open={moveDialogOpen}
         onOpenChange={setMoveDialogOpen}
         nodes={nodes}
-        currentNode={selectedNode}
+        currentNode={selectedNode ? selectedNode : initialNodes[0]}
+        currentApplication={currentApplication!}
         onMove={handleMoveConfigurations}
       />
 
@@ -350,7 +360,8 @@ function App() {
         open={copyDialogOpen}
         onOpenChange={setCopyDialogOpen}
         nodes={nodes}
-        currentNode={selectedNode}
+        currentNode={selectedNode ? selectedNode : initialNodes[0]}
+        currentApplication={currentApplication!}
         onCopy={handleCopyConfigurations}
       />
 

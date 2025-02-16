@@ -17,6 +17,7 @@ interface MoveConfigurationsDialogProps {
   nodes: ConfigNode[];
   currentNode: ConfigNode;
   onMove: (destinationNode: ConfigNode) => void;
+  currentApplication: ConfigNode;
 }
 
 const NodeIcon = ({ type }: { type: string }) => {
@@ -43,15 +44,17 @@ const TreeNode = ({
   level, 
   onSelect,
   currentNode,
+  currentApplication,
   isLastChild 
 }: {
   node: ConfigNode;
   level: number;
   onSelect: (node: ConfigNode) => void;
   currentNode: ConfigNode;
+  currentApplication: ConfigNode;
   isLastChild: boolean;
 }) => {
-  const isDisabled = node.id === currentNode.id;
+  const isDisabled = node.id === currentNode.id || (node.type === 'application' && node.id !== currentApplication.id);
 
   return (
     <div className="relative">
@@ -111,6 +114,7 @@ const TreeNode = ({
               level={level + 1}
               onSelect={onSelect}
               currentNode={currentNode}
+              currentApplication={currentApplication}
               isLastChild={index === node.children!.length - 1}
             />
           ))}
@@ -126,6 +130,7 @@ export function MoveConfigurationsDialog({
   nodes,
   currentNode,
   onMove,
+  currentApplication,
 }: MoveConfigurationsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -135,7 +140,7 @@ export function MoveConfigurationsDialog({
         </DialogHeader>
         <div className="py-4">
           <div className="text-sm text-zinc-500 mb-4">
-            Select a destination node to move the selected configurations
+            Select a destination node (within the same application) to move the selected configurations
           </div>
           <div className="border rounded-lg max-h-[400px] overflow-auto">
             {nodes.map((node, index) => (
@@ -145,6 +150,7 @@ export function MoveConfigurationsDialog({
                 level={0}
                 onSelect={onMove}
                 currentNode={currentNode}
+                currentApplication={currentApplication}
                 isLastChild={index === nodes.length - 1}
               />
             ))}

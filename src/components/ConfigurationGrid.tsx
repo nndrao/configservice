@@ -68,14 +68,8 @@ export function ConfigurationGrid({
       headerCheckboxSelection: true,
       headerCheckboxSelectionFilteredOnly: true,
       suppressMenu: true,
-      cellStyle: { 
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingLeft: '8px'
-      },
-      headerClass: 'ag-checkbox-header-center',
-      cellClass: 'ag-checkbox-cell-center',
+     
+      
       resizable: false,
     },
     {

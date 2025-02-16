@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ interface CopyConfigurationsDialogProps {
   nodes: ConfigNode[];
   currentNode: ConfigNode;
   onCopy: (destinationNode: ConfigNode) => void;
+  currentApplication: ConfigNode;
 }
 
 const NodeIcon = ({ type }: { type: string }) => {
@@ -38,20 +39,22 @@ const NodeIcon = ({ type }: { type: string }) => {
   }
 };
 
-const TreeNode = ({ 
+NodeIcon.displayName = 'NodeIcon';
+
+const TreeNode = memo(({ 
   node, 
   level, 
   onSelect,
   currentNode,
-  isLastChild 
+  currentApplication,
 }: {
   node: ConfigNode;
   level: number;
-  onSelect: (node: ConfigNode) => void;
-  currentNode: ConfigNode;
-  isLastChild: boolean;
+  onSelect: (node: ConfigNode | null) => void;
+  currentNode: ConfigNode | undefined;
+  currentApplication: ConfigNode;
 }) => {
-  const isDisabled = node.id === currentNode.id;
+  const isDisabled = node.type === 'application' && node.id !== currentApplication.id;
 
   return (
     <div className="relative">
@@ -61,7 +64,7 @@ const TreeNode = ({
           className="absolute left-[7px] w-px bg-zinc-200" 
           style={{ 
             top: 0,
-            height: isLastChild ? '16px' : '100%',
+            height: '100%',
           }}
         />
       )}
@@ -111,14 +114,16 @@ const TreeNode = ({
               level={level + 1}
               onSelect={onSelect}
               currentNode={currentNode}
-              isLastChild={index === node.children!.length - 1}
+              currentApplication={currentApplication}
             />
           ))}
         </div>
       )}
     </div>
   );
-};
+});
+
+TreeNode.displayName = 'TreeNode';
 
 export function CopyConfigurationsDialog({
   open,
@@ -126,6 +131,7 @@ export function CopyConfigurationsDialog({
   nodes,
   currentNode,
   onCopy,
+  currentApplication,
 }: CopyConfigurationsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -135,7 +141,7 @@ export function CopyConfigurationsDialog({
         </DialogHeader>
         <div className="py-4">
           <div className="text-sm text-zinc-500 mb-4">
-            Select a destination node to copy the selected configurations
+            Select a destination node (within the same application) to copy the selected configurations
           </div>
           <div className="border rounded-lg max-h-[400px] overflow-auto">
             {nodes.map((node, index) => (
@@ -145,7 +151,7 @@ export function CopyConfigurationsDialog({
                 level={0}
                 onSelect={onCopy}
                 currentNode={currentNode}
-                isLastChild={index === nodes.length - 1}
+                currentApplication={currentApplication}
               />
             ))}
           </div>

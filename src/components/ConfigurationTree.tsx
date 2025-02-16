@@ -5,8 +5,8 @@ import { cn } from '@/lib/utils';
 
 interface ConfigurationTreeProps {
   nodes: ConfigNode[];
-  onNodeSelect: (node: ConfigNode | undefined) => void;
-  selectedNode?: ConfigNode;
+  selectedNode: ConfigNode | null;
+  onNodeSelect: (node: ConfigNode | null) => void;
 }
 
 const NodeIcon = memo(({ type }: { type: string }) => {
@@ -33,24 +33,22 @@ NodeIcon.displayName = 'NodeIcon';
 const TreeNode = memo(({ 
   node, 
   level, 
-  onNodeSelect, 
-  selectedNode,
-  isLastChild 
+  onSelect, 
+  selectedNode
 }: {
   node: ConfigNode;
   level: number;
-  onNodeSelect: (node: ConfigNode | undefined) => void;
-  selectedNode?: ConfigNode;
-  isLastChild: boolean;
+  onSelect: (node: ConfigNode | null) => void;
+  selectedNode: ConfigNode | null;
 }) => {
   const hasChildren = node.children && node.children.length > 0;
-  const isSelected = selectedNode?.id === node.id;
+  const isSelected = selectedNode ? node.id === selectedNode.id : false;
   
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    // If the node is already selected, deselect it by passing undefined
-    onNodeSelect(isSelected ? undefined : node);
-  }, [node, onNodeSelect, isSelected]);
+    // If the node is already selected, deselect it by passing null
+    onSelect(isSelected ? null : node);
+  }, [node, onSelect, isSelected]);
 
   return (
     <div className="relative">
@@ -60,7 +58,7 @@ const TreeNode = memo(({
           className="absolute left-[7px] w-px bg-zinc-200" 
           style={{ 
             top: 0,
-            height: isLastChild ? '16px' : '100%',
+            height: hasChildren ? '16px' : '100%',
           }}
         />
       )}
@@ -109,9 +107,8 @@ const TreeNode = memo(({
               key={child.id}
               node={child}
               level={level + 1}
-              onNodeSelect={onNodeSelect}
+              onSelect={onSelect}
               selectedNode={selectedNode}
-              isLastChild={index === node.children!.length - 1}
             />
           ))}
         </div>
@@ -122,11 +119,11 @@ const TreeNode = memo(({
 
 TreeNode.displayName = 'TreeNode';
 
-export function ConfigurationTree({ nodes, onNodeSelect, selectedNode }: ConfigurationTreeProps) {
+export function ConfigurationTree({ nodes, selectedNode, onNodeSelect }: ConfigurationTreeProps) {
   const handleBackgroundClick = useCallback((e: React.MouseEvent) => {
     // Only deselect if clicking the background, not a node
     if (e.target === e.currentTarget) {
-      onNodeSelect(undefined);
+      onNodeSelect(null);
     }
   }, [onNodeSelect]);
 
@@ -145,14 +142,20 @@ export function ConfigurationTree({ nodes, onNodeSelect, selectedNode }: Configu
       aria-label="Configuration hierarchy"
       onClick={handleBackgroundClick}
     >
+      {/* Clear Selection option allows deselecting a node */}
+      <div
+        className="py-1 cursor-pointer text-sm text-zinc-500 hover:bg-zinc-100"
+        onClick={() => onNodeSelect(null)}
+      >
+        Clear Selection
+      </div>
       {nodes.map((node, index) => (
         <TreeNode
           key={node.id}
           node={node}
           level={0}
-          onNodeSelect={onNodeSelect}
+          onSelect={onNodeSelect}
           selectedNode={selectedNode}
-          isLastChild={index === nodes.length - 1}
         />
       ))}
     </div>
