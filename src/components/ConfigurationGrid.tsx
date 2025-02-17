@@ -69,12 +69,16 @@ export function ConfigurationGrid({
       headerCheckboxSelectionFilteredOnly: true,
       suppressMenu: true,
      
-      
       resizable: false,
     },
     {
       field: 'id',
       headerName: 'ID',
+      minWidth: 100,
+    },
+    {
+      field: 'parentId',
+      headerName: 'Parent ID',
       minWidth: 100,
     },
     {
@@ -115,6 +119,13 @@ export function ConfigurationGrid({
       field: 'settings', 
       headerName: 'Settings',
       minWidth: 150,
+      valueFormatter: (params: any) => params.value ? JSON.stringify(params.value) : '',
+      autoHeight: true,
+    },
+    { 
+      field: 'activeSetting', 
+      headerName: 'Active Setting',
+      minWidth: 200,
       valueFormatter: (params: any) => params.value ? JSON.stringify(params.value) : '',
       autoHeight: true,
     },

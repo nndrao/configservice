@@ -14,6 +14,7 @@ export interface Configuration {
   label: string;
   setting: Record<string, any>;
   settings: Record<string, any>;
+  activeSetting: Record<string, any>;
   createdBy: string;
   updateBy: string;
   createTime: string;

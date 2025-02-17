@@ -11,8 +11,14 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+html,body{
+  height: 100vh;
+  width:100vw;
+  box-sizing: border-box;
+}
 
 /* AG Grid Theme Customization */
+/*
 .ag-theme-alpine {
   --ag-font-family: Inter, system-ui, -apple-system, sans-serif;
   --ag-font-size: 13px;
@@ -41,7 +47,7 @@
 .ag-theme-alpine .ag-root {
   border: none;
 }
-
+*/
 @layer base {
   :root {
     --background: 0 0% 100%;

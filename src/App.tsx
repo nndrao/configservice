@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { AddConfigurationDialog } from '@/components/AddConfigurationDialog';
 import './App.css';
 
 // Initial mock data
@@ -78,6 +79,7 @@ const initialConfigurations: Configuration[] = [
     label: 'Primary Monitor',
     setting: { resolution: '1920x1080' },
     settings: { width: 1920, height: 1080 },
+    activeSetting: { currentResolution: '1920x1080', brightness: 80, contrast: 75 },
     createdBy: 'System',
     updateBy: 'Admin',
     createTime: '2024-01-01',
@@ -93,11 +95,12 @@ const initialConfigurations: Configuration[] = [
     label: 'App Settings',
     setting: { theme: 'dark' },
     settings: { mode: 'dark', accent: 'blue' },
+    activeSetting: { currentTheme: 'dark', fontSize: '14px', language: 'en' },
     createdBy: 'System',
     updateBy: 'Admin',
     createTime: '2024-01-01',
     updateTime: '2024-01-02',
-    canOverride: false,
+    canOverride: true,
     sourceNode: 'Application1'
   },
 ];
@@ -111,6 +114,7 @@ function App() {
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [addConfigDialogOpen, setAddConfigDialogOpen] = useState(false);
 
   // Helper function to get parent chain (from root to current node)
   const getParentChain = (nodeId: string): ConfigNode[] => {
@@ -246,18 +250,22 @@ function App() {
     setSelectedConfigs(selectedRows);
   };
 
+  const handleAddConfiguration = (newConfiguration: Configuration) => {
+    setConfigurations([...configurations, newConfiguration]);
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <header className="bg-white border-b shadow-sm py-4 px-6">
-        <div className="max-w-7xl mx-auto">
+    <div className="flex flex-col h-screen">
+      <header className="bg-white border-b shadow-sm py-4 px-6 flex-none">
+        <div className="max-w-full mx-auto">
           <h1 className="text-2xl font-semibold text-gray-900">Configuration Services</h1>
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="w-80 bg-white border-r shadow-sm p-4 flex flex-col">
+      <main className="flex-1 flex overflow-hidden">
+        <div className="w-80 bg-white border-r shadow-sm p-4 flex flex-col overflow-hidden">
           <Button 
-            className="mb-4 w-full shadow-sm hover:shadow-md transition-shadow" 
+            className="mb-4 w-full shadow-sm hover:shadow-md transition-shadow flex-none" 
             onClick={() => setCreateDialogOpen(true)}
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -274,12 +282,20 @@ function App() {
         </div>
 
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
-          <div className="p-6 border-b">
+          <div className="p-6 border-b flex-none">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium text-gray-900">
                 Settings for <span className="font-semibold">{selectedNode ? selectedNode.name : 'No node selected'}</span>
               </h2>
               <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setAddConfigDialogOpen(true)}
+                  className="shadow-sm hover:shadow-md transition-all"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Configuration
+                </Button>
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -294,7 +310,7 @@ function App() {
                   className="shadow-sm hover:shadow-md transition-all"
                 >
                   <Copy className="w-4 h-4 mr-2" />
-                  Duplicate
+                  Clone
                 </Button>
                 <Button
                   variant="outline"
@@ -328,7 +344,7 @@ function App() {
           </div>
 
           <div className="flex-1 overflow-hidden p-6">
-            <div className="rounded-lg border shadow-sm overflow-hidden h-full">
+            <div className="h-full rounded-lg border shadow-sm overflow-hidden">
               <ConfigurationGrid
                 configurations={filteredConfigurations}
                 selectedNode={selectedNode || undefined}
@@ -337,7 +353,18 @@ function App() {
             </div>
           </div>
         </div>
-      </div>
+      </main>
+
+      <footer className="bg-white border-t py-4 px-6 flex-none">
+        <div className="max-w-full mx-auto flex justify-between items-center">
+          <div className="text-sm text-gray-500">
+            © 2024 Configuration Services. All rights reserved.
+          </div>
+          <div className="text-sm text-gray-500">
+            Version 1.0.0
+          </div>
+        </div>
+      </footer>
 
       <CreateNodeDialog
         open={createDialogOpen}
@@ -382,6 +409,14 @@ function App() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AddConfigurationDialog
+        open={addConfigDialogOpen}
+        onOpenChange={setAddConfigDialogOpen}
+        onSave={handleAddConfiguration}
+        nodes={nodes}
+        currentNode={selectedNode || initialNodes[0]}
+      />
     </div>
   );
 }
