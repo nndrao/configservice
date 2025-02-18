@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Configuration, ConfigNode } from '@/types/config';
 import { ConfigurationDialog } from './ConfigurationDialog';
@@ -24,6 +24,36 @@ export function ConfigurationGrid({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedConfiguration, setSelectedConfiguration] = useState<Configuration | null>(null);
   const gridRef = useRef<any>(null);
+  const [theme, setTheme] = useState<'ag-theme-quartz' | 'ag-theme-quartz-dark'>('ag-theme-quartz');
+
+  // Theme observer
+  useEffect(() => {
+    const updateTheme = () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      setTheme(currentTheme === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz');
+    };
+
+    // Initial theme
+    updateTheme();
+
+    // Create observer to watch for theme changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'data-theme') {
+          updateTheme();
+        }
+      });
+    });
+
+    // Start observing
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+
+    // Cleanup
+    return () => observer.disconnect();
+  }, []);
 
   const handleEdit = (configuration: Configuration) => {
     if (configuration.parentId === selectedNode?.id) {
@@ -44,11 +74,11 @@ export function ConfigurationGrid({
   const ActionCellRenderer = (props: any) => {
     const isInherited = props.data.parentId !== selectedNode?.id;
     return (
-      <div className="flex justify-center">
+      <div className="flex items-center justify-center h-full">
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 hover:bg-gray-100 transition-colors"
+          className="h-8 w-8 p-0 hover:bg-transparent dark:hover:bg-transparent transition-opacity hover:opacity-70"
           onClick={() => handleEdit(props.data)}
           disabled={isInherited}
           title={isInherited ? "Cannot edit inherited configurations" : "Edit configuration"}
@@ -163,7 +193,7 @@ export function ConfigurationGrid({
 
   return (
     <>
-      <div className="ag-theme-quartz w-full h-full">
+      <div className={`${theme} w-full h-full`}>
         <AgGridReact
           ref={gridRef}
           rowData={configurations}
@@ -177,7 +207,6 @@ export function ConfigurationGrid({
           rowHeight={48}
           headerHeight={48}
           className="font-sans"
-          rowClass="hover:bg-gray-50"
           onGridSizeChanged={(params) => {
             params.api.sizeColumnsToFit();
           }}
