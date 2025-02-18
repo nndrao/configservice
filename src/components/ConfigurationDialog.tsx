@@ -46,6 +46,36 @@ export function ConfigurationDialog({
   const [selectedNode, setSelectedNode] = useState<ConfigNode>(currentNode);
   const [parsedSettings, setParsedSettings] = useState<Array<{ id: string }>>([]);
   const [jsonError, setJsonError] = useState('');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  // Get the current theme from the document
+  useEffect(() => {
+    const updateTheme = () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme') as 'dark' | 'light';
+      setTheme(currentTheme || 'light');
+    };
+
+    // Initial theme
+    updateTheme();
+
+    // Create observer to watch for theme changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'data-theme') {
+          updateTheme();
+        }
+      });
+    });
+
+    // Start observing
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+
+    // Cleanup
+    return () => observer.disconnect();
+  }, []);
 
   // Initialize form with existing configuration data when editing
   useEffect(() => {
@@ -155,47 +185,47 @@ export function ConfigurationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[80vh] dark:bg-[#1C1C1F] dark:border-[#2A2A2F]">
+      <DialogContent className="max-w-4xl h-[80vh] bg-white dark:bg-[#1C1C1F] border-[#e5e5e5] dark:border-[#2A2A2F]">
         <DialogHeader>
-          <DialogTitle className="dark:text-white">
+          <DialogTitle className="text-[#1e1e1e] dark:text-white">
             {configuration ? 'Edit Configuration' : 'Add New Configuration'}
           </DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-6 py-4 h-full overflow-hidden">
           <div className="flex flex-col gap-4 overflow-y-auto pr-4">
             <div className="space-y-2">
-              <Label htmlFor="componentType" className="dark:text-white">Component Type</Label>
+              <Label htmlFor="componentType" className="text-[#1e1e1e] dark:text-white">Component Type</Label>
               <Input
                 id="componentType"
                 value={componentType}
                 onChange={(e) => setComponentType(e.target.value)}
                 placeholder="Enter component type"
-                className="dark:bg-[#141517] dark:border-[#2A2A2F] dark:text-white dark:placeholder-gray-500"
+                className="bg-white border-[#e5e5e5] text-[#1e1e1e] placeholder-[#767676] dark:bg-[#141517] dark:border-[#2A2A2F] dark:text-white dark:placeholder-gray-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="componentSubType" className="dark:text-white">Component Sub-Type</Label>
+              <Label htmlFor="componentSubType" className="text-[#1e1e1e] dark:text-white">Component Sub-Type</Label>
               <Input
                 id="componentSubType"
                 value={componentSubType}
                 onChange={(e) => setComponentSubType(e.target.value)}
                 placeholder="Enter component sub-type"
-                className="dark:bg-[#141517] dark:border-[#2A2A2F] dark:text-white dark:placeholder-gray-500"
+                className="bg-white border-[#e5e5e5] text-[#1e1e1e] placeholder-[#767676] dark:bg-[#141517] dark:border-[#2A2A2F] dark:text-white dark:placeholder-gray-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="label" className="dark:text-white">Label</Label>
+              <Label htmlFor="label" className="text-[#1e1e1e] dark:text-white">Label</Label>
               <Input
                 id="label"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="Enter label"
-                className="dark:bg-[#141517] dark:border-[#2A2A2F] dark:text-white dark:placeholder-gray-500"
+                className="bg-white border-[#e5e5e5] text-[#1e1e1e] placeholder-[#767676] dark:bg-[#141517] dark:border-[#2A2A2F] dark:text-white dark:placeholder-gray-500"
               />
             </div>
             <div className="space-y-2">
-              <Label className="dark:text-white">Setting (JSON)</Label>
-              <div className="border rounded-md overflow-hidden h-48 dark:border-[#2A2A2F] dark:border-opacity-50">
+              <Label className="text-[#1e1e1e] dark:text-white">Setting (JSON)</Label>
+              <div className="border border-[#e5e5e5] dark:border-[#2A2A2F] dark:border-opacity-50 rounded-md overflow-hidden h-48">
                 <Editor
                   height="100%"
                   defaultLanguage="json"
@@ -206,7 +236,7 @@ export function ConfigurationDialog({
                     formatOnPaste: true,
                     formatOnType: true,
                     automaticLayout: true,
-                    theme: 'vs-dark',
+                    theme: theme === 'dark' ? 'vs-dark' : 'vs',
                     fontSize: 13,
                     fontFamily: 'Menlo, Monaco, "Courier New", monospace',
                     lineHeight: 20,
@@ -226,14 +256,14 @@ export function ConfigurationDialog({
                     overviewRulerBorder: false,
                     contextmenu: false,
                   }}
-                  className="dark:[&_.monaco-editor]:bg-[#141517] dark:[&_.monaco-editor_.margin]:bg-[#141517]"
+                  className="[&_.monaco-editor]:bg-white dark:[&_.monaco-editor]:bg-[#141517] [&_.monaco-editor_.margin]:bg-white dark:[&_.monaco-editor_.margin]:bg-[#141517]"
                   onValidate={handleEditorValidation}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="dark:text-white">Settings Array (JSON)</Label>
-              <div className="border rounded-md overflow-hidden h-48 dark:border-[#2A2A2F] dark:border-opacity-50">
+              <Label className="text-[#1e1e1e] dark:text-white">Settings Array (JSON)</Label>
+              <div className="border border-[#e5e5e5] dark:border-[#2A2A2F] dark:border-opacity-50 rounded-md overflow-hidden h-48">
                 <Editor
                   height="100%"
                   defaultLanguage="json"
@@ -244,7 +274,7 @@ export function ConfigurationDialog({
                     formatOnPaste: true,
                     formatOnType: true,
                     automaticLayout: true,
-                    theme: 'vs-dark',
+                    theme: theme === 'dark' ? 'vs-dark' : 'vs',
                     fontSize: 13,
                     fontFamily: 'Menlo, Monaco, "Courier New", monospace',
                     lineHeight: 20,
@@ -264,27 +294,27 @@ export function ConfigurationDialog({
                     overviewRulerBorder: false,
                     contextmenu: false,
                   }}
-                  className="dark:[&_.monaco-editor]:bg-[#141517] dark:[&_.monaco-editor_.margin]:bg-[#141517]"
+                  className="[&_.monaco-editor]:bg-white dark:[&_.monaco-editor]:bg-[#141517] [&_.monaco-editor_.margin]:bg-white dark:[&_.monaco-editor_.margin]:bg-[#141517]"
                   onValidate={handleEditorValidation}
                 />
               </div>
             </div>
             {parsedSettings.length > 0 && (
               <div className="space-y-2">
-                <Label className="dark:text-white">Active Setting</Label>
+                <Label className="text-[#1e1e1e] dark:text-white">Active Setting</Label>
                 <Select
                   value={selectedSettingId}
                   onValueChange={setSelectedSettingId}
                 >
-                  <SelectTrigger className="dark:bg-[#141517] dark:border-[#2A2A2F] dark:text-white">
+                  <SelectTrigger className="bg-white border-[#e5e5e5] text-[#1e1e1e] dark:bg-[#141517] dark:border-[#2A2A2F] dark:text-white">
                     <SelectValue placeholder="Select active setting" />
                   </SelectTrigger>
-                  <SelectContent className="dark:bg-[#1C1C1F] dark:border-[#2A2A2F]">
+                  <SelectContent className="bg-white border-[#e5e5e5] dark:bg-[#1C1C1F] dark:border-[#2A2A2F]">
                     {parsedSettings.map((setting) => (
                       <SelectItem 
                         key={setting.id} 
                         value={setting.id}
-                        className="dark:text-white dark:focus:bg-[#2A2A35]"
+                        className="text-[#1e1e1e] hover:bg-[#f3f3f3] dark:text-white dark:focus:bg-[#2A2A35]"
                       >
                         {setting.id}
                       </SelectItem>
@@ -297,11 +327,11 @@ export function ConfigurationDialog({
               <div className="text-red-500 text-sm dark:text-red-400">{jsonError}</div>
             )}
           </div>
-          <div className="border rounded-lg overflow-hidden dark:border-[#2A2A2F]">
-            <div className="p-4 border-b bg-gray-50 dark:bg-[#1C1C1F] dark:border-[#2A2A2F]">
-              <Label className="dark:text-white">Select Target Node</Label>
+          <div className="border border-[#e5e5e5] dark:border-[#2A2A2F] rounded-lg overflow-hidden">
+            <div className="p-4 border-b border-[#e5e5e5] bg-white dark:bg-[#1C1C1F] dark:border-[#2A2A2F]">
+              <Label className="text-[#1e1e1e] dark:text-white">Select Target Node</Label>
             </div>
-            <div className="p-2 h-full overflow-auto dark:bg-[#141517]">
+            <div className="p-2 h-full overflow-auto bg-white dark:bg-[#141517]">
               <ConfigurationTree
                 nodes={nodes}
                 selectedNode={selectedNode}
@@ -314,14 +344,14 @@ export function ConfigurationDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="dark:bg-[#2A2A35] dark:border-[#3A3A45] dark:text-white dark:hover:bg-[#3A3A45]"
+            className="bg-white border-[#e5e5e5] text-[#1e1e1e] hover:bg-[#f3f3f3] hover:border-[#d4d4d4] dark:bg-[#2A2A35] dark:border-[#3A3A45] dark:text-white dark:hover:bg-[#3A3A45]"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSave}
             disabled={!componentType || !componentSubType || !label || jsonError}
-            className="dark:bg-[#3B82F6] dark:border-[#2563EB] dark:text-white dark:hover:bg-[#2563EB] dark:disabled:bg-[#2A2A35] dark:disabled:border-[#3A3A45]"
+            className="bg-[#0066b8] border-[#0066b8] text-white hover:bg-[#005ba4] hover:border-[#005ba4] dark:bg-[#3B82F6] dark:border-[#2563EB] dark:text-white dark:hover:bg-[#2563EB] dark:disabled:bg-[#2A2A35] dark:disabled:border-[#3A3A45]"
           >
             {configuration ? 'Save Changes' : 'Save Configuration'}
           </Button>

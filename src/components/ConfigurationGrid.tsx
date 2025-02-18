@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Pencil } from 'lucide-react';
 import 'ag-grid-enterprise';
 import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
+import 'ag-grid-community/styles/ag-theme-quartz.css';
 
 interface ConfigurationGridProps {
   configurations: Configuration[];
@@ -163,7 +163,7 @@ export function ConfigurationGrid({
 
   return (
     <>
-      <div className="ag-theme-alpine w-full h-full">
+      <div className="ag-theme-quartz w-full h-full">
         <AgGridReact
           ref={gridRef}
           rowData={configurations}
