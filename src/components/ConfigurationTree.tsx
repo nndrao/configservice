@@ -52,22 +52,11 @@ const TreeNode = memo(({
 
   return (
     <div className="relative">
-      {/* Vertical line from parent */}
-      {level > 0 && (
-        <div 
-          className="absolute left-[7px] w-px bg-zinc-200" 
-          style={{ 
-            top: 0,
-            height: hasChildren ? '16px' : '100%',
-          }}
-        />
-      )}
-      
       <div
         className={cn(
-          "relative py-1 cursor-pointer group",
+          "relative py-1 cursor-pointer group tree-node",
           "hover:bg-zinc-100 rounded transition-colors",
-          isSelected && "bg-blue-50 hover:bg-blue-100 ring-1 ring-blue-200"
+          isSelected && "selected bg-blue-50 hover:bg-blue-100 ring-1 ring-blue-200"
         )}
         onClick={handleClick}
         style={{ paddingLeft: `${Math.min(level * 20, 200)}px` }}
@@ -75,26 +64,11 @@ const TreeNode = memo(({
         aria-selected={isSelected}
         aria-expanded={hasChildren}
       >
-        {/* Horizontal line to node */}
-        {level > 0 && (
-          <div 
-            className="absolute left-[7px] h-px bg-zinc-200" 
-            style={{ 
-              width: '12px',
-              top: '16px',
-            }}
-          />
-        )}
-        
         <div className="flex items-center gap-2 px-2 relative">
-          <div className="relative z-10 bg-white p-1">
+          <div className="relative z-10 bg-transparent p-1">
             <NodeIcon type={node.type} />
           </div>
-          <span className={cn(
-            "text-sm transition-colors",
-            isSelected ? "text-blue-900 font-medium" : "text-zinc-700",
-            "group-hover:text-zinc-900"
-          )}>
+          <span className="text-sm text-zinc-700 dark:text-[#E5E7EB] transition-colors">
             {node.name}
           </span>
         </div>

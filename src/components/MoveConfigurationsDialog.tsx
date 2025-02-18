@@ -58,21 +58,10 @@ const TreeNode = ({
 
   return (
     <div className="relative">
-      {/* Vertical line from parent */}
-      {level > 0 && (
-        <div 
-          className="absolute left-[7px] w-px bg-zinc-200" 
-          style={{ 
-            top: 0,
-            height: isLastChild ? '16px' : '100%',
-          }}
-        />
-      )}
-      
       <div
         className={cn(
-          "relative py-1 group",
-          !isDisabled && "cursor-pointer hover:bg-zinc-100",
+          "relative py-1 group tree-node",
+          !isDisabled && "cursor-pointer hover:bg-zinc-100 dark:hover:bg-[#2A2A35] dark:hover:border-[#3A3A45]",
           isDisabled && "opacity-50 cursor-not-allowed"
         )}
         onClick={() => !isDisabled && onSelect(node)}
@@ -80,25 +69,14 @@ const TreeNode = ({
         role="button"
         aria-disabled={isDisabled}
       >
-        {/* Horizontal line to node */}
-        {level > 0 && (
-          <div 
-            className="absolute left-[7px] h-px bg-zinc-200" 
-            style={{ 
-              width: '12px',
-              top: '16px',
-            }}
-          />
-        )}
-        
         <div className="flex items-center gap-2 px-2 relative">
-          <div className="relative z-10 bg-white p-1">
+          <div className="relative z-10 bg-transparent p-1 dark:bg-opacity-3">
             <NodeIcon type={node.type} />
           </div>
           <span className={cn(
-            "text-sm transition-colors",
-            !isDisabled && "group-hover:text-zinc-900",
-            isDisabled ? "text-zinc-400" : "text-zinc-700"
+            "text-sm transition-colors tree-node-text",
+            !isDisabled && "group-hover:text-zinc-900 dark:group-hover:text-white",
+            isDisabled ? "text-zinc-400" : "text-zinc-700 dark:text-[#E5E7EB]"
           )}>
             {node.name}
           </span>

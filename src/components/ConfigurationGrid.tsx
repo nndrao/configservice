@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Configuration, ConfigNode } from '@/types/config';
-import { EditConfigurationDialog } from './EditConfigurationDialog';
+import { ConfigurationDialog } from './ConfigurationDialog';
 import { Button } from '@/components/ui/button';
 import { Pencil } from 'lucide-react';
 import 'ag-grid-enterprise';
@@ -10,14 +10,16 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface ConfigurationGridProps {
   configurations: Configuration[];
-  onSelectionChanged: (selectedRows: Configuration[]) => void;
+  onSelectionChanged: (selectedRows: Configuration[] | Configuration) => void;
   selectedNode?: ConfigNode;
+  nodes: ConfigNode[];
 }
 
 export function ConfigurationGrid({ 
   configurations, 
   onSelectionChanged,
-  selectedNode 
+  selectedNode,
+  nodes
 }: ConfigurationGridProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedConfiguration, setSelectedConfiguration] = useState<Configuration | null>(null);
@@ -31,7 +33,12 @@ export function ConfigurationGrid({
   };
 
   const handleSave = (updatedConfiguration: Configuration) => {
-    console.log('Saving configuration:', updatedConfiguration);
+    // Update the configuration in the parent component
+    const updatedConfigurations = configurations.map(config => 
+      config.id === updatedConfiguration.id ? updatedConfiguration : config
+    );
+    onSelectionChanged(updatedConfigurations);
+    setEditDialogOpen(false);
   };
 
   const ActionCellRenderer = (props: any) => {
@@ -177,11 +184,13 @@ export function ConfigurationGrid({
         />
       </div>
 
-      <EditConfigurationDialog
+      <ConfigurationDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
-        configuration={selectedConfiguration}
         onSave={handleSave}
+        nodes={nodes}
+        currentNode={selectedNode!}
+        configuration={selectedConfiguration}
       />
     </>
   );
