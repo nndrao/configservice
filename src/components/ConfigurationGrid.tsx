@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Configuration, ConfigNode } from '@/types/config';
 import { ConfigurationDialog } from './ConfigurationDialog';
 import { Button } from '@/components/ui/button';
-import { Pencil } from 'lucide-react';
+import { FileEdit } from 'lucide-react';
 import 'ag-grid-enterprise';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
@@ -78,12 +78,12 @@ export function ConfigurationGrid({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 hover:bg-transparent dark:hover:bg-transparent transition-opacity hover:opacity-70"
+          className="h-8 w-8 p-0 bg-transparent hover:bg-transparent dark:hover:bg-transparent transition-opacity hover:opacity-70 dark:text-gray-300"
           onClick={() => handleEdit(props.data)}
           disabled={isInherited}
           title={isInherited ? "Cannot edit inherited configurations" : "Edit configuration"}
         >
-          <Pencil className="h-4 w-4" />
+          <FileEdit className="h-4 w-4" />
         </Button>
       </div>
     );
