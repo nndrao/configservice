@@ -180,7 +180,94 @@ function App() {
     return chain[0] || initialNodes[0];
   }, [selectedNode]);
 
+  const findApplicationId = (nodes: ConfigNode[], targetId: string): string | null => {
+    // If the target node is an application, return its ID
+    const targetNode = nodes.find(node => node.id === targetId);
+    if (targetNode?.type === 'application') {
+      return targetNode.id;
+    }
+
+    // Otherwise, search through all nodes to find the parent application
+    for (const node of nodes) {
+      if (node.type === 'application') {
+        const hasTargetInChildren = (parent: ConfigNode): boolean => {
+          if (parent.id === targetId) return true;
+          return parent.children?.some(child => hasTargetInChildren(child)) || false;
+        };
+        if (hasTargetInChildren(node)) {
+          return node.id;
+        }
+      }
+      // If the node has children, recursively search them
+      if (node.children?.length) {
+        const foundId = findApplicationId(node.children, targetId);
+        if (foundId) return foundId;
+      }
+    }
+    return null;
+  };
+
+  const isNodeUnique = (nodes: ConfigNode[], type: string, name: string, applicationId: string, nodeIdToIgnore?: string): boolean => {
+    const checkNode = (node: ConfigNode): boolean => {
+      // If we're in a different application, skip the check
+      if (node.type === 'application' && node.id !== applicationId) {
+        return true;
+      }
+
+      // Check current node, but ignore the node being updated if nodeIdToIgnore is provided
+      if (node.type === type && 
+          node.name.toLowerCase() === name.toLowerCase() && 
+          node.id !== nodeIdToIgnore) {
+        return false;
+      }
+
+      // Check children recursively
+      if (node.children) {
+        return node.children.every(child => checkNode(child));
+      }
+
+      return true;
+    };
+
+    // Find the application node first
+    const applicationNode = nodes.find(node => node.type === 'application' && node.id === applicationId);
+    if (!applicationNode) return true; // If we can't find the application, assume it's unique
+
+    // Only check within the found application
+    return checkNode(applicationNode);
+  };
+
   const handleCreateNode = (type: string, name: string) => {
+    // Find the application node that contains the selected node
+    let applicationId: string | null = null;
+    
+    if (!selectedNode) {
+      // If no node is selected and trying to create an application, check uniqueness across all applications
+      if (type === 'application') {
+        if (!isNodeUnique(nodes, type, name, '')) {
+          alert(`An application with the name "${name}" already exists. Please choose a different name.`);
+          return;
+        }
+      } else {
+        alert('Please select a parent node first.');
+        return;
+      }
+    } else {
+      // Find the parent application ID
+      applicationId = findApplicationId(nodes, selectedNode.id);
+      
+      if (!applicationId) {
+        alert('Could not find parent application. Please try again.');
+        return;
+      }
+
+      // Check if the node type and name combination is unique within the application
+      if (!isNodeUnique(nodes, type, name, applicationId)) {
+        alert(`A ${type} with the name "${name}" already exists in this application. Please choose a different name.`);
+        return;
+      }
+    }
+
     const newNode: ConfigNode = {
       id: crypto.randomUUID(),
       name,
@@ -197,7 +284,7 @@ function App() {
           if (node.id === selectedNode.id) {
             return {
               ...node,
-              children: [...(node.children || []), newNode],
+              children: node.children ? [...node.children, newNode] : [newNode],
             };
           }
           if (node.children) {
@@ -257,8 +344,16 @@ function App() {
     setDeleteDialogOpen(false);
   };
 
-  const handleSelectionChanged = (selectedRows: Configuration[]) => {
-    setSelectedConfigs(selectedRows);
+  const handleSelectionChange = (selectedRows: Configuration | Configuration[]) => {
+    if (Array.isArray(selectedRows)) {
+      setSelectedConfigs(selectedRows);
+    } else {
+      setConfigurations(prev => 
+        prev.map(config => 
+          config.id === selectedRows.id ? selectedRows : config
+        )
+      );
+    }
   };
 
   const handleAddConfiguration = (newConfiguration: Configuration) => {
@@ -266,6 +361,21 @@ function App() {
   };
 
   const handleUpdateNode = (updatedNode: ConfigNode) => {
+    // Find the parent application ID
+    const applicationId = findApplicationId(nodes, updatedNode.id);
+    
+    if (!applicationId) {
+      alert('Could not find parent application. Please try again.');
+      return;
+    }
+
+    // Check if the new name would be unique for this node type within the application
+    // Pass the node's own ID to ignore it in the uniqueness check
+    if (!isNodeUnique(nodes, updatedNode.type, updatedNode.name, applicationId, updatedNode.id)) {
+      alert(`A ${updatedNode.type} with the name "${updatedNode.name}" already exists in this application. Please choose a different name.`);
+      return;
+    }
+
     const updateNodes = (nodes: ConfigNode[]): ConfigNode[] => {
       return nodes.map((node) => {
         if (node.id === updatedNode.id) {
@@ -419,17 +529,7 @@ function App() {
               <ConfigurationGrid
                 configurations={filteredConfigurations}
                 selectedNode={selectedNode || undefined}
-                onSelectionChanged={(updatedConfigurations) => {
-                  if (Array.isArray(updatedConfigurations)) {
-                    setSelectedConfigs(updatedConfigurations);
-                  } else {
-                    setConfigurations(prev => 
-                      prev.map(config => 
-                        config.id === updatedConfigurations.id ? updatedConfigurations : config
-                      )
-                    );
-                  }
-                }}
+                onSelectionChanged={handleSelectionChange}
                 nodes={nodes}
               />
             </div>
