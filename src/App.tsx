@@ -265,6 +265,53 @@ function App() {
     setConfigurations([...configurations, newConfiguration]);
   };
 
+  const handleUpdateNode = (updatedNode: ConfigNode) => {
+    const updateNodes = (nodes: ConfigNode[]): ConfigNode[] => {
+      return nodes.map((node) => {
+        if (node.id === updatedNode.id) {
+          return { ...node, name: updatedNode.name };
+        }
+        if (node.children) {
+          return {
+            ...node,
+            children: updateNodes(node.children),
+          };
+        }
+        return node;
+      });
+    };
+
+    setNodes(updateNodes(nodes));
+  };
+
+  const handleDeleteNode = (nodeId: string) => {
+    const deleteNode = (nodes: ConfigNode[]): ConfigNode[] => {
+      return nodes.filter((node) => {
+        if (node.id === nodeId) {
+          // Also delete all configurations associated with this node
+          setConfigurations(prev => prev.filter(config => config.parentId !== nodeId));
+          return false;
+        }
+        if (node.children) {
+          node.children = deleteNode(node.children);
+        }
+        return true;
+      });
+    };
+
+    setNodes(deleteNode(nodes));
+    if (selectedNode?.id === nodeId) {
+      setSelectedNode(null);
+    }
+  };
+
+  const handleNodeSelect = (node: ConfigNode | null) => {
+    setSelectedNode(node);
+    if (!node) {
+      setAddConfigDialogOpen(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen theme-transition" data-theme={theme}>
       <header className="border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex-none">
@@ -295,7 +342,11 @@ function App() {
             <ConfigurationTree
               nodes={nodes}
               selectedNode={selectedNode}
-              onNodeSelect={setSelectedNode}
+              onNodeSelect={handleNodeSelect}
+              onUpdateNode={handleUpdateNode}
+              onDeleteNode={handleDeleteNode}
+              onCreateNode={handleCreateNode}
+              onAddConfiguration={() => setAddConfigDialogOpen(true)}
             />
           </div>
         </div>
@@ -310,6 +361,7 @@ function App() {
                 <Button
                   variant="outline"
                   onClick={() => setAddConfigDialogOpen(true)}
+                  disabled={!selectedNode}
                   className="shadow-sm hover:shadow-md transition-all button-hover-effect dark:bg-gray-800 dark:text-white dark:border-gray-700"
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -444,8 +496,8 @@ function App() {
         open={addConfigDialogOpen}
         onOpenChange={setAddConfigDialogOpen}
         onSave={handleAddConfiguration}
-        nodes={nodes}
-        currentNode={selectedNode || initialNodes[0]}
+        currentNode={selectedNode!}
+        configuration={undefined}
       />
     </div>
   );
