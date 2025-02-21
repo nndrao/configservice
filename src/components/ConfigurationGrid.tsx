@@ -18,8 +18,7 @@ import { Configuration, ConfigNode } from '@/types/config';
 import { ConfigurationDialog } from './ConfigurationDialog';
 import { Button } from '@/components/ui/button';
 import { FileEdit } from 'lucide-react';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
+
 
 // Register all required modules
 ModuleRegistry.registerModules([
@@ -28,7 +27,23 @@ ModuleRegistry.registerModules([
 ]);
 
 // Create theme instance
-const gridTheme = themeQuartz;
+const gridTheme = themeQuartz
+  .withParams(
+    {
+      backgroundColor: "#FFE8E0",
+      foregroundColor: "#361008CC",
+      browserColorScheme: "light",
+    },
+    "light-red",
+  )
+  .withParams(
+    {
+      backgroundColor: "#201008",
+      foregroundColor: "#FFFFFFCC",
+      browserColorScheme: "dark",
+    },
+    "dark-red",
+  );
 
 interface ConfigurationGridProps {
   configurations: Configuration[];
@@ -95,16 +110,16 @@ export function ConfigurationGrid({
   const ActionCellRenderer = (props: ICellRendererParams<Configuration>) => {
     const isInherited = props.data?.parentId !== selectedNode?.id;
     return (
-      <div className="flex items-center h-full">
+      <div className="flex items-center justify-center" style={{ margin: '5px' }}>
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 bg-transparent hover:bg-transparent dark:hover:bg-transparent transition-opacity hover:opacity-70 dark:text-gray-300"
+          className="h-8 w-8 p-0 bg-transparent hover:bg-transparent"
           onClick={() => props.data && handleEdit(props.data)}
           disabled={isInherited}
           title={isInherited ? "Cannot edit inherited configurations" : "Edit configuration"}
         >
-          <FileEdit className="h-4 w-4" />
+          <FileEdit className="h-4 w-4" style={{ color: 'inherit' }} />
         </Button>
       </div>
     );
@@ -112,15 +127,15 @@ export function ConfigurationGrid({
 
   const ConfigSourceCellRenderer = (props: ICellRendererParams<Configuration>) => {
     if (props.data?.parentId === selectedNode?.id) {
-      return <span className="text-gray-700 font-medium">Direct</span>;
+      return <span style={{ color: 'inherit' }}>Direct</span>;
     }
-    return <span className="text-blue-600 font-medium">Inherited</span>;
+    return <span className="text-blue-600">Inherited</span>;
   };
 
   const columnDefs = useMemo<ColDef<Configuration>[]>(() => [
     { 
       headerName: '',
-      minWidth: 60,
+      minWidth: 80,
       checkboxSelection: true,
       headerCheckboxSelection: true,
       headerCheckboxSelectionFilteredOnly: true,
@@ -138,13 +153,14 @@ export function ConfigurationGrid({
       minWidth: 100,
     },
     {
-      headerName: 'Actions',
-      width: 100,
-      maxWidth: 100,
+      headerName: '',
+      minWidth:80,
       cellRenderer: ActionCellRenderer,
       sortable: false,
       filter: false,
       resizable: false,
+      align: 'center',
+      suppressHeaderMenuButton:true
     },
     {
       headerName: 'Config Source',
