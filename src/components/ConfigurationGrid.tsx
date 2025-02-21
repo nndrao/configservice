@@ -1,12 +1,49 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AgGridReact } from 'ag-grid-react';
+import { 
+  AllCommunityModule,
+  ICellRendererParams,
+  GridReadyEvent,
+  SelectionChangedEvent,
+  IsRowSelectable,
+  ColDef,
+  ValueFormatterParams,
+  IRowNode,
+  GridSizeChangedEvent,
+  ModuleRegistry,
+  themeQuartz
+} from 'ag-grid-community';
+import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import { Configuration, ConfigNode } from '@/types/config';
 import { ConfigurationDialog } from './ConfigurationDialog';
 import { Button } from '@/components/ui/button';
 import { FileEdit } from 'lucide-react';
-import 'ag-grid-enterprise';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-quartz.css';
+
+
+// Register all required modules
+ModuleRegistry.registerModules([
+  AllCommunityModule,
+  AllEnterpriseModule
+]);
+
+// Create theme instance
+const gridTheme = themeQuartz
+  .withParams(
+    {
+      backgroundColor: "#FFE8E0",
+      foregroundColor: "#361008CC",
+      browserColorScheme: "light",
+    },
+    "light-red",
+  )
+  .withParams(
+    {
+      backgroundColor: "#201008",
+      foregroundColor: "#FFFFFFCC",
+      browserColorScheme: "dark",
+    },
+    "dark-red",
+  );
 
 interface ConfigurationGridProps {
   configurations: Configuration[];
@@ -18,19 +55,18 @@ interface ConfigurationGridProps {
 export function ConfigurationGrid({ 
   configurations, 
   onSelectionChanged,
-  selectedNode,
-  nodes
+  selectedNode
 }: ConfigurationGridProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedConfiguration, setSelectedConfiguration] = useState<Configuration | null>(null);
-  const gridRef = useRef<any>(null);
-  const [theme, setTheme] = useState<'ag-theme-quartz' | 'ag-theme-quartz-dark'>('ag-theme-quartz');
+  const [selectedConfiguration, setSelectedConfiguration] = useState<Configuration | undefined>(undefined);
+  const gridRef = useRef<AgGridReact>(null);
 
   // Theme observer
   useEffect(() => {
     const updateTheme = () => {
       const currentTheme = document.documentElement.getAttribute('data-theme');
-      setTheme(currentTheme === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz');
+      // Update AG Grid theme mode
+      document.body.dataset.agThemeMode = currentTheme === 'dark' ? 'dark' : 'light';
     };
 
     // Initial theme
@@ -71,41 +107,39 @@ export function ConfigurationGrid({
     setEditDialogOpen(false);
   };
 
-  const ActionCellRenderer = (props: any) => {
-    const isInherited = props.data.parentId !== selectedNode?.id;
+  const ActionCellRenderer = (props: ICellRendererParams<Configuration>) => {
+    const isInherited = props.data?.parentId !== selectedNode?.id;
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center" style={{ margin: '5px' }}>
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 bg-transparent hover:bg-transparent dark:hover:bg-transparent transition-opacity hover:opacity-70 dark:text-gray-300"
-          onClick={() => handleEdit(props.data)}
+          className="h-8 w-8 p-0 bg-transparent hover:bg-transparent"
+          onClick={() => props.data && handleEdit(props.data)}
           disabled={isInherited}
           title={isInherited ? "Cannot edit inherited configurations" : "Edit configuration"}
         >
-          <FileEdit className="h-4 w-4" />
+          <FileEdit className="h-4 w-4" style={{ color: 'inherit' }} />
         </Button>
       </div>
     );
   };
 
-  const ConfigSourceCellRenderer = (props: any) => {
-    if (props.data.parentId === selectedNode?.id) {
-      return <span className="text-gray-700 font-medium">Direct</span>;
+  const ConfigSourceCellRenderer = (props: ICellRendererParams<Configuration>) => {
+    if (props.data?.parentId === selectedNode?.id) {
+      return <span style={{ color: 'inherit' }}>Direct</span>;
     }
-    return <span className="text-blue-600 font-medium">Inherited</span>;
+    return <span className="text-blue-600">Inherited</span>;
   };
 
-  const columnDefs = useMemo(() => [
+  const columnDefs = useMemo<ColDef<Configuration>[]>(() => [
     { 
       headerName: '',
-      width: 50,
-      maxWidth: 50,
-      checkboxSelection: (params: any) => params.data.parentId === selectedNode?.id,
+      minWidth: 80,
+      checkboxSelection: true,
       headerCheckboxSelection: true,
       headerCheckboxSelectionFilteredOnly: true,
       suppressMenu: true,
-     
       resizable: false,
     },
     {
@@ -119,13 +153,14 @@ export function ConfigurationGrid({
       minWidth: 100,
     },
     {
-      headerName: 'Actions',
-      width: 100,
-      maxWidth: 100,
+      headerName: '',
+      minWidth:80,
       cellRenderer: ActionCellRenderer,
       sortable: false,
       filter: false,
       resizable: false,
+      align: 'center',
+      suppressHeaderMenuButton:true
     },
     {
       headerName: 'Config Source',
@@ -138,8 +173,8 @@ export function ConfigurationGrid({
       field: 'sourceNode',
       headerName: 'Source Node',
       minWidth: 130,
-      valueFormatter: (params: any) => {
-        return params.data.parentId === selectedNode?.id ? '-' : params.value;
+      valueFormatter: (params: ValueFormatterParams<Configuration>) => {
+        return params.data?.parentId === selectedNode?.id ? '-' : params.value;
       },
     },
     { field: 'componentType', headerName: 'Component Type', minWidth: 150 },
@@ -149,21 +184,21 @@ export function ConfigurationGrid({
       field: 'setting', 
       headerName: 'Setting',
       minWidth: 150,
-      valueFormatter: (params: any) => params.value ? JSON.stringify(params.value) : '',
+      valueFormatter: (params: ValueFormatterParams<Configuration>) => params.value ? JSON.stringify(params.value) : '',
       autoHeight: true,
     },
     { 
       field: 'settings', 
       headerName: 'Settings',
       minWidth: 150,
-      valueFormatter: (params: any) => params.value ? JSON.stringify(params.value) : '',
+      valueFormatter: (params: ValueFormatterParams<Configuration>) => params.value ? JSON.stringify(params.value) : '',
       autoHeight: true,
     },
     { 
       field: 'activeSetting', 
       headerName: 'Active Setting',
       minWidth: 200,
-      valueFormatter: (params: any) => params.value ? JSON.stringify(params.value) : '',
+      valueFormatter: (params: ValueFormatterParams<Configuration>) => params.value ? JSON.stringify(params.value) : '',
       autoHeight: true,
     },
     { field: 'createdBy', headerName: 'Created By', minWidth: 120 },
@@ -180,20 +215,22 @@ export function ConfigurationGrid({
     flex: 1,
   }), []);
 
-  const onSelectionChangedHandler = (event: any) => {
+  const onSelectionChangedHandler = (event: SelectionChangedEvent<Configuration>) => {
     const selectedRows = event.api.getSelectedRows();
     onSelectionChanged(selectedRows);
   };
 
-  const onGridReady = (params: any) => {
+  const onGridReady = (params: GridReadyEvent) => {
     params.api.sizeColumnsToFit();
-    // Auto-size all columns after data is loaded
-    params.columnApi.autoSizeAllColumns();
+  };
+
+  const isRowSelectable: IsRowSelectable<Configuration> = (node: IRowNode<Configuration>) => {
+    return node.data?.parentId === selectedNode?.id;
   };
 
   return (
     <>
-      <div className={`${theme} w-full h-full`}>
+      <div className="w-full h-full" style={{ height: '100%' }}>
         <AgGridReact
           ref={gridRef}
           rowData={configurations}
@@ -203,13 +240,19 @@ export function ConfigurationGrid({
           suppressRowClickSelection={true}
           onSelectionChanged={onSelectionChangedHandler}
           onGridReady={onGridReady}
-          isRowSelectable={(params: any) => params.data.parentId === selectedNode?.id}
+          isRowSelectable={isRowSelectable}
           rowHeight={48}
           headerHeight={48}
           className="font-sans"
-          onGridSizeChanged={(params) => {
+          onGridSizeChanged={(params: GridSizeChangedEvent) => {
             params.api.sizeColumnsToFit();
           }}
+          rowModelType="clientSide"
+          enableCellTextSelection={true}
+          ensureDomOrder={true}
+          suppressCellFocus={false}
+          popupParent={document.body}
+          theme={gridTheme}
         />
       </div>
 
@@ -217,7 +260,6 @@ export function ConfigurationGrid({
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         onSave={handleSave}
-        nodes={nodes}
         currentNode={selectedNode!}
         configuration={selectedConfiguration}
       />

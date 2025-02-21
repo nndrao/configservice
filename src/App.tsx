@@ -424,14 +424,18 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen theme-transition" data-theme={theme}>
-      <header className="border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex-none">
+      <header className="app-header py-4 px-6 flex-none">
         <div className="max-w-full mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Configuration Services</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Configuration Services</h1>
+            <div className="badge badge-blue">v1.0.0</div>
+          </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
-            className="rounded-full w-10 h-10 button-hover-effect dark:text-white"
+            className="rounded-full w-10 h-10 button-hover-effect dark:text-white tooltip"
+            data-tooltip={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
           >
             {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </Button>
@@ -448,7 +452,7 @@ function App() {
             Add New Node
           </Button>
 
-          <div className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-800 tree-container">
+          <div className="flex-1 overflow-auto tree-container">
             <ConfigurationTree
               nodes={nodes}
               selectedNode={selectedNode}
@@ -462,19 +466,34 @@ function App() {
         </div>
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex-none">
+          <div className="settings-header">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                Settings for <span className="font-semibold">{selectedNode ? selectedNode.name : 'No node selected'}</span>
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="settings-title">
+                  {selectedNode ? (
+                    <>
+                      <span className="text-muted-foreground">Settings for</span>{' '}
+                      <span className="font-semibold">{selectedNode.name}</span>
+                    </>
+                  ) : (
+                    'No node selected'
+                  )}
+                </h2>
+                {selectedNode && (
+                  <div className="badge badge-green">
+                    {selectedNode.type}
+                  </div>
+                )}
+              </div>
               <div className="flex gap-3">
                 <Button
                   variant="outline"
                   onClick={() => setAddConfigDialogOpen(true)}
                   disabled={!selectedNode}
-                  className="shadow-sm hover:shadow-md transition-all button-hover-effect dark:bg-gray-800 dark:text-white dark:border-gray-700"
+                  className="action-button"
+                  data-tooltip="Add a new configuration"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="w-4 h-4" />
                   Add Configuration
                 </Button>
                 <Button
@@ -488,36 +507,40 @@ function App() {
                     setSelectedConfigs([]);
                   }}
                   disabled={selectedConfigs.length === 0}
-                  className="shadow-sm hover:shadow-md transition-all button-hover-effect dark:bg-gray-800 dark:text-white dark:border-gray-700"
+                  className="action-button"
+                  data-tooltip="Clone selected configurations"
                 >
-                  <Copy className="w-4 h-4 mr-2" />
+                  <Copy className="w-4 h-4" />
                   Clone
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setMoveDialogOpen(true)}
                   disabled={selectedConfigs.length === 0}
-                  className="shadow-sm hover:shadow-md transition-all button-hover-effect dark:bg-gray-800 dark:text-white dark:border-gray-700"
+                  className="action-button"
+                  data-tooltip="Move selected configurations"
                 >
-                  <Move className="w-4 h-4 mr-2" />
+                  <Move className="w-4 h-4" />
                   Move
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setCopyDialogOpen(true)}
                   disabled={selectedConfigs.length === 0}
-                  className="shadow-sm hover:shadow-md transition-all button-hover-effect dark:bg-gray-800 dark:text-white dark:border-gray-700"
+                  className="action-button"
+                  data-tooltip="Copy selected configurations"
                 >
-                  <Copy className="w-4 h-4 mr-2" />
+                  <Copy className="w-4 h-4" />
                   Copy
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setDeleteDialogOpen(true)}
                   disabled={selectedConfigs.length === 0}
-                  className="text-red-600 hover:bg-red-50 hover:border-red-200 shadow-sm hover:shadow-md transition-all button-hover-effect dark:hover:bg-red-900/50 dark:border-red-800"
+                  className="action-button text-red-600 hover:bg-red-50 hover:border-red-200"
+                  data-tooltip="Delete selected configurations"
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <Trash2 className="w-4 h-4" />
                   Delete
                 </Button>
               </div>
@@ -525,7 +548,7 @@ function App() {
           </div>
 
           <div className="flex-1 overflow-hidden p-6">
-            <div className="h-full rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <div className="h-full grid-container">
               <ConfigurationGrid
                 configurations={filteredConfigurations}
                 selectedNode={selectedNode || undefined}
@@ -538,12 +561,11 @@ function App() {
       </main>
 
       <footer className="border-t border-gray-200 dark:border-gray-800 py-4 px-6 flex-none">
-        <div className="max-w-full mx-auto flex justify-between items-center">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            © 2024 Configuration Services. All rights reserved.
-          </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Version 1.0.0
+        <div className="max-w-full mx-auto flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+          <div>© 2024 Configuration Services. All rights reserved.</div>
+          <div className="flex items-center gap-2">
+            <div className="status-indicator status-active"></div>
+            System Status: Operational
           </div>
         </div>
       </footer>
