@@ -18,97 +18,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ConfigurationDialog } from '@/components/ConfigurationDialog';
+import { nodeOperations, configOperations } from '@/utils/database';
 import './App.css';
 
-// Initial mock data
-const initialNodes: ConfigNode[] = [
-  {
-    id: '1',
-    name: 'Application1',
-    type: 'application',
-    parentId: null,
-    children: [
-      {
-        id: '2',
-        name: 'Region1',
-        type: 'region',
-        parentId: '1',
-        children: [
-          {
-            id: '3',
-            name: 'City1',
-            type: 'city',
-            parentId: '2',
-            children: [
-              {
-                id: '4',
-                name: 'Department1',
-                type: 'department',
-                parentId: '3',
-                children: [
-                  {
-                    id: '5',
-                    name: 'Desk1',
-                    type: 'desk',
-                    parentId: '4',
-                    children: [
-                      {
-                        id: '6',
-                        name: 'User1',
-                        type: 'user',
-                        parentId: '5',
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
-
-const initialConfigurations: Configuration[] = [
-  {
-    id: '1',
-    parentId: '6',
-    componentType: 'Display',
-    componentSubType: 'Monitor',
-    label: 'Primary Monitor',
-    setting: { resolution: '1920x1080' },
-    settings: { width: 1920, height: 1080 },
-    activeSetting: { currentResolution: '1920x1080', brightness: 80, contrast: 75 },
-    createdBy: 'System',
-    updateBy: 'Admin',
-    createTime: '2024-01-01',
-    updateTime: '2024-01-02',
-    canOverride: true,
-    sourceNode: 'User1'
-  },
-  {
-    id: '2',
-    parentId: '1',
-    componentType: 'System',
-    componentSubType: 'Application',
-    label: 'App Settings',
-    setting: { theme: 'dark' },
-    settings: { mode: 'dark', accent: 'blue' },
-    activeSetting: { currentTheme: 'dark', fontSize: '14px', language: 'en' },
-    createdBy: 'System',
-    updateBy: 'Admin',
-    createTime: '2024-01-01',
-    updateTime: '2024-01-02',
-    canOverride: true,
-    sourceNode: 'Application1'
-  },
-];
-
 function App() {
-  const [nodes, setNodes] = useState<ConfigNode[]>(initialNodes);
-  const [configurations, setConfigurations] = useState<Configuration[]>(initialConfigurations);
-  const [selectedNode, setSelectedNode] = useState<ConfigNode | null>(initialNodes[0]);
+  const [nodes, setNodes] = useState<ConfigNode[]>([]);
+  const [configurations, setConfigurations] = useState<Configuration[]>([]);
+  const [selectedNode, setSelectedNode] = useState<ConfigNode | null>(null);
   const [selectedConfigs, setSelectedConfigs] = useState<Configuration[]>([]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
@@ -116,6 +32,25 @@ function App() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addConfigDialogOpen, setAddConfigDialogOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+
+  // Load initial data from database
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const nodesFromDb = await nodeOperations.getAll();
+        const configsFromDb = await configOperations.getAll();
+        setNodes(nodesFromDb);
+        setConfigurations(configsFromDb);
+        // Set initial selected node to first application if exists
+        if (nodesFromDb.length > 0) {
+          setSelectedNode(nodesFromDb[0]);
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+    loadData();
+  }, []);
 
   // Theme toggle handler
   const toggleTheme = () => {
@@ -174,10 +109,10 @@ function App() {
   }, [selectedNode, nodes, configurations]);
 
   const currentApplication = useMemo(() => {
-    if (!selectedNode) return initialNodes[0];
+    if (!selectedNode) return nodes[0];
     // Get the chain of nodes from root to current node
     const chain = getParentChain(selectedNode.id);
-    return chain[0] || initialNodes[0];
+    return chain[0] || nodes[0];
   }, [selectedNode]);
 
   const findApplicationId = (nodes: ConfigNode[], targetId: string): string | null => {
@@ -237,12 +172,10 @@ function App() {
     return checkNode(applicationNode);
   };
 
-  const handleCreateNode = (type: string, name: string) => {
-    // Find the application node that contains the selected node
+  const handleCreateNode = async (type: string, name: string) => {
     let applicationId: string | null = null;
     
     if (!selectedNode) {
-      // If no node is selected and trying to create an application, check uniqueness across all applications
       if (type === 'application') {
         if (!isNodeUnique(nodes, type, name, '')) {
           alert(`An application with the name "${name}" already exists. Please choose a different name.`);
@@ -253,7 +186,6 @@ function App() {
         return;
       }
     } else {
-      // Find the parent application ID
       applicationId = findApplicationId(nodes, selectedNode.id);
       
       if (!applicationId) {
@@ -261,7 +193,6 @@ function App() {
         return;
       }
 
-      // Check if the node type and name combination is unique within the application
       if (!isNodeUnique(nodes, type, name, applicationId)) {
         alert(`A ${type} with the name "${name}" already exists in this application. Please choose a different name.`);
         return;
@@ -276,92 +207,119 @@ function App() {
       children: [],
     };
 
-    if (!selectedNode) {
-      setNodes([...nodes, newNode]);
-    } else {
-      const updateNodes = (nodes: ConfigNode[]): ConfigNode[] => {
-        return nodes.map((node) => {
-          if (node.id === selectedNode.id) {
-            return {
-              ...node,
-              children: node.children ? [...node.children, newNode] : [newNode],
-            };
-          }
-          if (node.children) {
-            return {
-              ...node,
-              children: updateNodes(node.children),
-            };
-          }
-          return node;
-        });
-      };
+    try {
+      // Save to database
+      await nodeOperations.create(newNode);
 
-      setNodes(updateNodes(nodes));
+      // Update state
+      const nodesFromDb = await nodeOperations.getAll();
+      setNodes(nodesFromDb);
+      setCreateDialogOpen(false);
+    } catch (error) {
+      console.error('Error creating node:', error);
+      alert('Failed to create node. Please try again.');
     }
-    setCreateDialogOpen(false);
   };
 
-  const handleMoveConfigurations = (destinationNode: ConfigNode) => {
-    // When moving, keep the same IDs but update parentId
-    const movedConfigurations = selectedConfigs.map(config => ({
-      ...config,
-      parentId: destinationNode.id,
-      sourceNode: destinationNode.name
-    }));
+  const handleMoveConfigurations = async (destinationNode: ConfigNode) => {
+    try {
+      // Update configurations in database and state
+      for (const config of selectedConfigs) {
+        const updatedConfig = {
+          ...config,
+          parentId: destinationNode.id,
+          sourceNode: destinationNode.name,
+          updateTime: new Date().toISOString()
+        };
+        await configOperations.update(updatedConfig);
+      }
 
-    // Update configurations, replacing old ones with moved ones
-    const updatedConfigurations = configurations.map(config => 
-      movedConfigurations.find(moved => moved.id === config.id) || config
-    );
-
-    setConfigurations(updatedConfigurations);
-    setSelectedConfigs([]);
-    setMoveDialogOpen(false);
-    setSelectedNode(destinationNode);
+      // Refresh configurations from database
+      const configsFromDb = await configOperations.getAll();
+      setConfigurations(configsFromDb);
+      setSelectedConfigs([]);
+      setMoveDialogOpen(false);
+      setSelectedNode(destinationNode);
+    } catch (error) {
+      console.error('Error moving configurations:', error);
+      alert('Failed to move configurations. Please try again.');
+    }
   };
 
-  const handleCopyConfigurations = (destinationNode: ConfigNode) => {
-    // Allow copying rows within the same node. When copying, generate new IDs. This supports copying rows even when the destination node is the same as the current node.
-    const copiedConfigurations = selectedConfigs.map(config => ({
-      ...config,
-      id: crypto.randomUUID(), // Generate new ID for copied configurations
-      parentId: destinationNode.id,
-      sourceNode: destinationNode.name
-    }));
+  const handleCopyConfigurations = async (destinationNode: ConfigNode) => {
+    try {
+      // Copy each selected configuration with its references
+      for (const config of selectedConfigs) {
+        await configOperations.cloneConfigurationWithReferences(config.id, destinationNode.id);
+      }
 
-    // Add copied configurations to existing ones
-    setConfigurations([...configurations, ...copiedConfigurations]);
-    setSelectedConfigs([]);
-    setCopyDialogOpen(false);
-    setSelectedNode(destinationNode);
+      // Refresh configurations from database
+      const configsFromDb = await configOperations.getAll();
+      setConfigurations(configsFromDb);
+      setSelectedConfigs([]);
+      setCopyDialogOpen(false);
+      setSelectedNode(destinationNode);
+    } catch (error) {
+      console.error('Error copying configurations:', error);
+      alert('Failed to copy configurations. Please try again.');
+    }
   };
 
-  const handleDeleteConfigurations = () => {
-    const selectedIds = new Set(selectedConfigs.map(config => config.id));
-    setConfigurations(configurations.filter(config => !selectedIds.has(config.id)));
-    setSelectedConfigs([]);
-    setDeleteDialogOpen(false);
+  const handleDeleteConfigurations = async () => {
+    try {
+      // Delete configurations from database
+      for (const config of selectedConfigs) {
+        await configOperations.delete(config.id);
+      }
+
+      // Refresh configurations from database
+      const configsFromDb = await configOperations.getAll();
+      setConfigurations(configsFromDb);
+      setSelectedConfigs([]);
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      console.error('Error deleting configurations:', error);
+      alert('Failed to delete configurations. Please try again.');
+    }
   };
 
-  const handleSelectionChange = (selectedRows: Configuration | Configuration[]) => {
+  const handleSelectionChange = async (selectedRows: Configuration | Configuration[]) => {
     if (Array.isArray(selectedRows)) {
       setSelectedConfigs(selectedRows);
     } else {
-      setConfigurations(prev => 
-        prev.map(config => 
-          config.id === selectedRows.id ? selectedRows : config
-        )
-      );
+      try {
+        // Update configuration in database
+        const updatedConfig = {
+          ...selectedRows,
+          updateTime: new Date().toISOString()
+        };
+        await configOperations.update(updatedConfig);
+        
+        // Refresh configurations from database
+        const configsFromDb = await configOperations.getAll();
+        setConfigurations(configsFromDb);
+      } catch (error) {
+        console.error('Error updating configuration:', error);
+        alert('Failed to update configuration. Please try again.');
+      }
     }
   };
 
-  const handleAddConfiguration = (newConfiguration: Configuration) => {
-    setConfigurations([...configurations, newConfiguration]);
+  const handleAddConfiguration = async (newConfiguration: Configuration) => {
+    try {
+      // Create configuration in database
+      await configOperations.create(newConfiguration);
+      
+      // Refresh configurations from database
+      const configsFromDb = await configOperations.getAll();
+      setConfigurations(configsFromDb);
+    } catch (error) {
+      console.error('Error adding configuration:', error);
+      alert('Failed to add configuration. Please try again.');
+    }
   };
 
-  const handleUpdateNode = (updatedNode: ConfigNode) => {
-    // Find the parent application ID
+  const handleUpdateNode = async (updatedNode: ConfigNode) => {
     const applicationId = findApplicationId(nodes, updatedNode.id);
     
     if (!applicationId) {
@@ -369,49 +327,42 @@ function App() {
       return;
     }
 
-    // Check if the new name would be unique for this node type within the application
-    // Pass the node's own ID to ignore it in the uniqueness check
     if (!isNodeUnique(nodes, updatedNode.type, updatedNode.name, applicationId, updatedNode.id)) {
       alert(`A ${updatedNode.type} with the name "${updatedNode.name}" already exists in this application. Please choose a different name.`);
       return;
     }
 
-    const updateNodes = (nodes: ConfigNode[]): ConfigNode[] => {
-      return nodes.map((node) => {
-        if (node.id === updatedNode.id) {
-          return { ...node, name: updatedNode.name };
-        }
-        if (node.children) {
-          return {
-            ...node,
-            children: updateNodes(node.children),
-          };
-        }
-        return node;
-      });
-    };
+    try {
+      // Update node in database
+      await nodeOperations.update(updatedNode);
 
-    setNodes(updateNodes(nodes));
+      // Refresh nodes from database
+      const nodesFromDb = await nodeOperations.getAll();
+      setNodes(nodesFromDb);
+    } catch (error) {
+      console.error('Error updating node:', error);
+      alert('Failed to update node. Please try again.');
+    }
   };
 
-  const handleDeleteNode = (nodeId: string) => {
-    const deleteNode = (nodes: ConfigNode[]): ConfigNode[] => {
-      return nodes.filter((node) => {
-        if (node.id === nodeId) {
-          // Also delete all configurations associated with this node
-          setConfigurations(prev => prev.filter(config => config.parentId !== nodeId));
-          return false;
-        }
-        if (node.children) {
-          node.children = deleteNode(node.children);
-        }
-        return true;
-      });
-    };
+  const handleDeleteNode = async (nodeId: string) => {
+    try {
+      // Delete node and its configurations from database
+      await nodeOperations.delete(nodeId);
+      await configOperations.deleteByParentId(nodeId);
 
-    setNodes(deleteNode(nodes));
-    if (selectedNode?.id === nodeId) {
-      setSelectedNode(null);
+      // Refresh data from database
+      const nodesFromDb = await nodeOperations.getAll();
+      const configsFromDb = await configOperations.getAll();
+      setNodes(nodesFromDb);
+      setConfigurations(configsFromDb);
+
+      if (selectedNode?.id === nodeId) {
+        setSelectedNode(null);
+      }
+    } catch (error) {
+      console.error('Error deleting node:', error);
+      alert('Failed to delete node. Please try again.');
     }
   };
 
@@ -419,6 +370,29 @@ function App() {
     setSelectedNode(node);
     if (!node) {
       setAddConfigDialogOpen(false);
+    }
+  };
+
+  const handleSaveChanges = async (modifiedConfigurations: Configuration[]) => {
+    try {
+      // Update each modified configuration in the database
+      for (const config of modifiedConfigurations) {
+        await configOperations.update({
+          ...config,
+          updateTime: new Date().toISOString(),
+          updateBy: 'User1' // Add user info
+        });
+      }
+
+      // Refresh all configurations from database to ensure we have the latest data
+      const configsFromDb = await configOperations.getAll();
+      setConfigurations(configsFromDb);
+      
+      // Show success message
+      alert('Changes saved successfully');
+    } catch (error) {
+      console.error('Error saving configurations:', error);
+      alert('Failed to save changes. Please try again.');
     }
   };
 
@@ -498,13 +472,26 @@ function App() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    const duplicatedConfigs = selectedConfigs.map(config => ({
-                      ...config,
-                      id: crypto.randomUUID(),
-                    }));
-                    setConfigurations([...configurations, ...duplicatedConfigs]);
-                    setSelectedConfigs([]);
+                  onClick={async () => {
+                    if (selectedConfigs.length === 0) return;
+                    
+                    try {
+                      // Clone each selected configuration
+                      for (const config of selectedConfigs) {
+                        await configOperations.cloneConfigurationWithReferences(
+                          config.id,
+                          config.parentId // Clone to same parent node
+                        );
+                      }
+                      
+                      // Refresh configurations from database
+                      const configsFromDb = await configOperations.getAll();
+                      setConfigurations(configsFromDb);
+                      setSelectedConfigs([]);
+                    } catch (error) {
+                      console.error('Error cloning configurations:', error);
+                      alert('Failed to clone configurations. Please try again.');
+                    }
                   }}
                   disabled={selectedConfigs.length === 0}
                   className="action-button"
@@ -553,7 +540,7 @@ function App() {
                 configurations={filteredConfigurations}
                 selectedNode={selectedNode || undefined}
                 onSelectionChanged={handleSelectionChange}
-                nodes={nodes}
+                onSaveChanges={handleSaveChanges}
               />
             </div>
           </div>
@@ -582,7 +569,7 @@ function App() {
         open={moveDialogOpen}
         onOpenChange={setMoveDialogOpen}
         nodes={nodes}
-        currentNode={selectedNode ? selectedNode : initialNodes[0]}
+        currentNode={selectedNode ? selectedNode : nodes[0]}
         currentApplication={currentApplication!}
         onMove={handleMoveConfigurations}
       />
@@ -591,7 +578,7 @@ function App() {
         open={copyDialogOpen}
         onOpenChange={setCopyDialogOpen}
         nodes={nodes}
-        currentNode={selectedNode ? selectedNode : initialNodes[0]}
+        currentNode={selectedNode ? selectedNode : nodes[0]}
         currentApplication={currentApplication!}
         onCopy={handleCopyConfigurations}
       />
