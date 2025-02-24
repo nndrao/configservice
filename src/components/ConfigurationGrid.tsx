@@ -11,13 +11,14 @@ import {
   IRowNode,
   GridSizeChangedEvent,
   ModuleRegistry,
-  themeQuartz
+  themeQuartz,
+  CellValueChangedEvent
 } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import { Configuration, ConfigNode } from '@/types/config';
 import { ConfigurationDialog } from './ConfigurationDialog';
 import { Button } from '@/components/ui/button';
-import { FileEdit } from 'lucide-react';
+import { FileEdit, Save } from 'lucide-react';
 
 
 // Register all required modules
@@ -49,16 +50,18 @@ interface ConfigurationGridProps {
   configurations: Configuration[];
   onSelectionChanged: (selectedRows: Configuration[] | Configuration) => void;
   selectedNode?: ConfigNode;
-  nodes: ConfigNode[];
+  onSaveChanges?: (configurations: Configuration[]) => Promise<void>;
 }
 
 export function ConfigurationGrid({ 
   configurations, 
   onSelectionChanged,
-  selectedNode
+  selectedNode,
+  onSaveChanges
 }: ConfigurationGridProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedConfiguration, setSelectedConfiguration] = useState<Configuration | undefined>(undefined);
+  const [modifiedConfigs, setModifiedConfigs] = useState<Map<string, Configuration>>(new Map());
   const gridRef = useRef<AgGridReact>(null);
 
   // Theme observer
@@ -99,12 +102,45 @@ export function ConfigurationGrid({
   };
 
   const handleSave = (updatedConfiguration: Configuration) => {
+    setModifiedConfigs(prev => new Map(prev).set(updatedConfiguration.id, updatedConfiguration));
     // Update the configuration in the parent component
     const updatedConfigurations = configurations.map(config => 
       config.id === updatedConfiguration.id ? updatedConfiguration : config
     );
     onSelectionChanged(updatedConfigurations);
     setEditDialogOpen(false);
+  };
+
+  const handleCellValueChanged = (event: CellValueChangedEvent) => {
+    if (event.data && event.newValue !== event.oldValue) {
+      const updatedConfig = {
+        ...event.data,
+        [event.column.getColId()]: event.newValue,
+        updateTime: new Date().toISOString()
+      };
+      
+      // Store the entire updated configuration
+      setModifiedConfigs(prev => new Map(prev).set(updatedConfig.id, updatedConfig));
+      
+      // Update the grid view
+      event.api.applyTransaction({ update: [updatedConfig] });
+    }
+  };
+
+  const handleSaveToDatabase = async () => {
+    if (modifiedConfigs.size === 0) return;
+
+    try {
+      if (onSaveChanges) {
+        // Convert Map values to array
+        const modifiedConfigurationsArray = Array.from(modifiedConfigs.values());
+        await onSaveChanges(modifiedConfigurationsArray);
+        setModifiedConfigs(new Map()); // Clear modified configs after successful save
+      }
+    } catch (error) {
+      console.error('Error saving configurations:', error);
+      alert('Failed to save changes. Please try again.');
+    }
   };
 
   const ActionCellRenderer = (props: ICellRendererParams<Configuration>) => {
@@ -177,35 +213,63 @@ export function ConfigurationGrid({
         return params.data?.parentId === selectedNode?.id ? '-' : params.value;
       },
     },
-    { field: 'componentType', headerName: 'Component Type', minWidth: 150 },
-    { field: 'componentSubType', headerName: 'Component Sub-Type', minWidth: 150 },
-    { field: 'label', headerName: 'Label', minWidth: 150 },
     { 
+      field: 'componentType', 
+      headerName: 'Component Type', 
+      minWidth: 150,
+      editable: true
+    },
+    { 
+      field: 'componentSubType', 
+      headerName: 'Component Sub-Type', 
+      minWidth: 150,
+      editable: true
+    },
+    { 
+      field: 'label', 
+      headerName: 'Label', 
+      minWidth: 150,
+      editable: true
+    },
+    {
       field: 'setting', 
       headerName: 'Setting',
       minWidth: 150,
+      editable: true,
       valueFormatter: (params: ValueFormatterParams<Configuration>) => params.value ? JSON.stringify(params.value) : '',
-      autoHeight: true,
+      valueSetter: (params) => {
+        try {
+          const newValue = JSON.parse(params.newValue);
+          params.data.setting = newValue;
+          return true;
+        } catch (e) {
+          console.error('Invalid JSON:', e);
+          return false;
+        }
+      }
     },
-    { 
-      field: 'settings', 
-      headerName: 'Settings',
-      minWidth: 150,
-      valueFormatter: (params: ValueFormatterParams<Configuration>) => params.value ? JSON.stringify(params.value) : '',
-      autoHeight: true,
-    },
-    { 
+    {
       field: 'activeSetting', 
       headerName: 'Active Setting',
       minWidth: 200,
+      editable: true,
       valueFormatter: (params: ValueFormatterParams<Configuration>) => params.value ? JSON.stringify(params.value) : '',
-      autoHeight: true,
+      valueSetter: (params) => {
+        try {
+          const newValue = JSON.parse(params.newValue);
+          params.data.activeSetting = newValue;
+          return true;
+        } catch (e) {
+          console.error('Invalid JSON:', e);
+          return false;
+        }
+      }
     },
-    { field: 'createdBy', headerName: 'Created By', minWidth: 120 },
-    { field: 'updateBy', headerName: 'Updated By', minWidth: 120 },
+    { field: 'createdBy', headerName: 'Created By', minWidth: 120, editable: true },
+    { field: 'updateBy', headerName: 'Updated By', minWidth: 120, editable: true },
     { field: 'createTime', headerName: 'Create Time', minWidth: 150 },
     { field: 'updateTime', headerName: 'Update Time', minWidth: 150 },
-    { field: 'canOverride', headerName: 'Can Override', minWidth: 120 },
+    { field: 'canOverride', headerName: 'Can Override', minWidth: 120, editable: true },
   ], [selectedNode]);
 
   const defaultColDef = useMemo(() => ({
@@ -230,30 +294,54 @@ export function ConfigurationGrid({
 
   return (
     <>
-      <div className="w-full h-full" style={{ height: '100%' }}>
-        <AgGridReact
-          ref={gridRef}
-          rowData={configurations}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          rowSelection="multiple"
-          suppressRowClickSelection={true}
-          onSelectionChanged={onSelectionChangedHandler}
-          onGridReady={onGridReady}
-          isRowSelectable={isRowSelectable}
-          rowHeight={48}
-          headerHeight={48}
-          className="font-sans"
-          onGridSizeChanged={(params: GridSizeChangedEvent) => {
-            params.api.sizeColumnsToFit();
-          }}
-          rowModelType="clientSide"
-          enableCellTextSelection={true}
-          ensureDomOrder={true}
-          suppressCellFocus={false}
-          popupParent={document.body}
-          theme={gridTheme}
-        />
+      <div className="w-full h-full flex flex-col" style={{ height: '100%' }}>
+        <div className="flex justify-end mb-2">
+          <Button
+            variant="outline"
+            onClick={handleSaveToDatabase}
+            disabled={modifiedConfigs.size === 0}
+            className="action-button"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            Save Changes ({modifiedConfigs.size})
+          </Button>
+        </div>
+        <div className="flex-1">
+          <AgGridReact
+            ref={gridRef}
+            rowData={configurations}
+            columnDefs={columnDefs}
+            defaultColDef={{
+              ...defaultColDef,
+              editable: false,
+              cellStyle: (params) => {
+                // Highlight modified cells
+                if (params.data && modifiedConfigs.has(params.data.id)) {
+                  return { backgroundColor: 'rgba(var(--primary), 0.1)' };
+                }
+                return null;
+              }
+            }}
+            rowSelection="multiple"
+            suppressRowClickSelection={true}
+            onSelectionChanged={onSelectionChangedHandler}
+            onGridReady={onGridReady}
+            isRowSelectable={isRowSelectable}
+            rowHeight={48}
+            headerHeight={48}
+            className="font-sans"
+            onGridSizeChanged={(params: GridSizeChangedEvent) => {
+              params.api.sizeColumnsToFit();
+            }}
+            onCellValueChanged={handleCellValueChanged}
+            rowModelType="clientSide"
+            enableCellTextSelection={true}
+            ensureDomOrder={true}
+            suppressCellFocus={false}
+            popupParent={document.body}
+            theme={gridTheme}
+          />
+        </div>
       </div>
 
       <ConfigurationDialog

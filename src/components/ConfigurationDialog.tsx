@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ConfigNode, Configuration } from '@/types/config';
-import Editor from '@monaco-editor/react';
+import Editor, { BeforeMount } from '@monaco-editor/react';
 import {
   Select,
   SelectContent,
@@ -35,41 +35,9 @@ export function ConfigurationDialog({
   const [componentType, setComponentType] = useState('');
   const [componentSubType, setComponentSubType] = useState('');
   const [label, setLabel] = useState('');
-  const [settingJson, setSettingJson] = useState('{}');
-  const [settingsJson, setSettingsJson] = useState('[]');
-  const [selectedSettingId, setSelectedSettingId] = useState('');
-  const [parsedSettings, setParsedSettings] = useState<Array<{ id: string }>>([]);
+  const [settingJson, setSettingJson] = useState('{\n  \n}');
+  const [activeSettingJson, setActiveSettingJson] = useState('{\n  \n}');
   const [jsonError, setJsonError] = useState('');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-
-  // Get the current theme from the document
-  useEffect(() => {
-    const updateTheme = () => {
-      const currentTheme = document.documentElement.getAttribute('data-theme') as 'dark' | 'light';
-      setTheme(currentTheme || 'light');
-    };
-
-    // Initial theme
-    updateTheme();
-
-    // Create observer to watch for theme changes
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'data-theme') {
-          updateTheme();
-        }
-      });
-    });
-
-    // Start observing
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme']
-    });
-
-    // Cleanup
-    return () => observer.disconnect();
-  }, []);
 
   // Initialize form with existing configuration data when editing
   useEffect(() => {
@@ -78,69 +46,22 @@ export function ConfigurationDialog({
       setComponentSubType(configuration.componentSubType);
       setLabel(configuration.label);
       setSettingJson(JSON.stringify(configuration.setting, null, 2));
-      setSettingsJson(JSON.stringify(configuration.settings, null, 2));
-      setSelectedSettingId(configuration.activeSetting?.id || '');
+      setActiveSettingJson(JSON.stringify(configuration.activeSetting, null, 2));
     } else {
       // Reset form when adding new configuration
       setComponentType('');
       setComponentSubType('');
       setLabel('');
-      setSettingJson('{}');
-      setSettingsJson('[]');
-      setSelectedSettingId('');
+      setSettingJson('{\n  \n}');
+      setActiveSettingJson('{\n  \n}');
     }
   }, [configuration]);
 
-  // Reset selectedSettingId when settingsJson changes
-  useEffect(() => {
-    if (!configuration) { // Only reset if not in edit mode
-      setSelectedSettingId('');
-    }
-  }, [settingsJson, configuration]);
-
-  useEffect(() => {
-    try {
-      const settings = JSON.parse(settingsJson);
-      if (Array.isArray(settings)) {
-        if (!settings.every(s => typeof s.id === 'string')) {
-          setJsonError('Each setting in the array must have an id property');
-          setParsedSettings([]);
-          return;
-        }
-        setParsedSettings(settings);
-        setJsonError('');
-      } else {
-        setJsonError('Settings must be an array of objects with id property');
-        setParsedSettings([]);
-      }
-    } catch (e) {
-      setJsonError('Invalid JSON format');
-      setParsedSettings([]);
-    }
-  }, [settingsJson]);
-
-  // If the dialog is open but there's no current node, close it
-  useEffect(() => {
-    if (open && !currentNode) {
-      onOpenChange(false);
-    }
-  }, [open, currentNode, onOpenChange]);
-
   const handleSave = () => {
     try {
-      // Validate settings JSON format
-      const settings = JSON.parse(settingsJson);
-      if (!Array.isArray(settings) || !settings.every(s => typeof s.id === 'string')) {
-        throw new Error('Settings must be an array of objects with id property');
-      }
-
       // Validate setting JSON
       const setting = JSON.parse(settingJson);
-
-      // Find the active setting from the settings array
-      const activeSetting = selectedSettingId 
-        ? settings.find(s => s.id === selectedSettingId) 
-        : undefined;
+      const activeSetting = JSON.parse(activeSettingJson);
 
       const updatedConfiguration: Configuration = {
         id: configuration?.id || crypto.randomUUID(),
@@ -149,8 +70,7 @@ export function ConfigurationDialog({
         componentSubType,
         label,
         setting,
-        settings,
-        activeSetting: activeSetting || null,
+        activeSetting,
         createdBy: configuration?.createdBy || 'User1',
         updateBy: 'User1',
         createTime: configuration?.createTime || new Date().toISOString(),
@@ -168,6 +88,66 @@ export function ConfigurationDialog({
 
   const handleEditorValidation = (markers: any) => {
     setJsonError(markers.length > 0 ? 'Invalid JSON format' : '');
+  };
+
+  // Define custom dark theme for Monaco editor
+  const beforeMount: BeforeMount = (monaco) => {
+    monaco.editor.defineTheme('customDarkTheme', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        { token: 'string.key.json', foreground: 'E06C75' },   // Property names in red
+        { token: 'string.value.json', foreground: '98C379' }, // String values in green
+        { token: 'number', foreground: 'D19A66' },            // Numbers in orange
+        { token: 'keyword', foreground: 'ABB2BF' },           // Brackets, commas, colons in light gray
+        { token: 'delimiter', foreground: 'ABB2BF' },         // Brackets, commas, colons in light gray
+        { token: 'operator', foreground: 'ABB2BF' },          // Colons in light gray
+      ],
+      colors: {
+        'editor.background': '#1E1E1E',
+        'editor.foreground': '#ABB2BF',
+        'editorLineNumber.foreground': '#495162',
+        'editorLineNumber.activeForeground': '#ABB2BF',
+        'editor.selectionBackground': '#3E4452',
+        'editor.inactiveSelectionBackground': '#3E4452',
+        'editorCursor.foreground': '#FFFFFF',
+        'editor.lineHighlightBackground': '#2C313A',
+        'scrollbarSlider.background': '#4B5364',
+        'scrollbarSlider.hoverBackground': '#5A6379',
+        'scrollbarSlider.activeBackground': '#747D91',
+      }
+    });
+  };
+
+  const editorOptions = {
+    minimap: { enabled: false },
+    formatOnPaste: true,
+    formatOnType: true,
+    automaticLayout: true,
+    fontSize: 13,
+    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+    lineHeight: 20,
+    padding: { top: 8, bottom: 8 },
+    scrollBeyondLastLine: false,
+    renderLineHighlight: 'none',
+    cursorStyle: 'line',
+    cursorWidth: 2,
+    tabSize: 2,
+    bracketPairColorization: {
+      enabled: false,
+    },
+    lineNumbers: 'on',
+    lineDecorationsWidth: 0,
+    hideCursorInOverviewRuler: true,
+    overviewRulerBorder: false,
+    contextmenu: false,
+    readOnly: false,
+    wordWrap: 'on',
+    guides: {
+      indentation: false,
+      bracketPairs: false,
+    },
+    colorDecorators: true,
   };
 
   return (
@@ -216,99 +196,31 @@ export function ConfigurationDialog({
                 height="100%"
                 defaultLanguage="json"
                 value={settingJson}
-                onChange={(value) => setSettingJson(value || '{}')}
-                options={{
-                  minimap: { enabled: false },
-                  formatOnPaste: true,
-                  formatOnType: true,
-                  automaticLayout: true,
-                  theme: theme === 'dark' ? 'vs-dark' : 'vs',
-                  fontSize: 13,
-                  fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-                  lineHeight: 20,
-                  padding: { top: 8, bottom: 8 },
-                  scrollBeyondLastLine: false,
-                  renderLineHighlight: 'all',
-                  cursorStyle: 'line',
-                  cursorWidth: 2,
-                  tabSize: 2,
-                  bracketPairColorization: {
-                    enabled: true,
-                  },
-                  renderLineHighlightOnlyWhenFocus: true,
-                  lineNumbers: 'on',
-                  lineDecorationsWidth: 0,
-                  hideCursorInOverviewRuler: true,
-                  overviewRulerBorder: false,
-                  contextmenu: false,
-                }}
-                className="[&_.monaco-editor]:bg-white dark:[&_.monaco-editor]:bg-[#141517] [&_.monaco-editor_.margin]:bg-white dark:[&_.monaco-editor_.margin]:bg-[#141517]"
+                onChange={(value) => setSettingJson(value || '{\n  \n}')}
+                options={editorOptions}
+                theme="customDarkTheme"
+                beforeMount={beforeMount}
+                className="[&_.monaco-editor]:bg-[#1E1E1E] [&_.monaco-editor_.margin]:bg-[#1E1E1E]"
                 onValidate={handleEditorValidation}
               />
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-[#1e1e1e] dark:text-white">Settings Array (JSON)</Label>
+            <Label className="text-[#1e1e1e] dark:text-white">Active Setting (JSON)</Label>
             <div className="border border-[#e5e5e5] dark:border-[#2A2A2F] dark:border-opacity-50 rounded-md overflow-hidden h-48">
               <Editor
                 height="100%"
                 defaultLanguage="json"
-                value={settingsJson}
-                onChange={(value) => setSettingsJson(value || '[]')}
-                options={{
-                  minimap: { enabled: false },
-                  formatOnPaste: true,
-                  formatOnType: true,
-                  automaticLayout: true,
-                  theme: theme === 'dark' ? 'vs-dark' : 'vs',
-                  fontSize: 13,
-                  fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-                  lineHeight: 20,
-                  padding: { top: 8, bottom: 8 },
-                  scrollBeyondLastLine: false,
-                  renderLineHighlight: 'all',
-                  cursorStyle: 'line',
-                  cursorWidth: 2,
-                  tabSize: 2,
-                  bracketPairColorization: {
-                    enabled: true,
-                  },
-                  renderLineHighlightOnlyWhenFocus: true,
-                  lineNumbers: 'on',
-                  lineDecorationsWidth: 0,
-                  hideCursorInOverviewRuler: true,
-                  overviewRulerBorder: false,
-                  contextmenu: false,
-                }}
-                className="[&_.monaco-editor]:bg-white dark:[&_.monaco-editor]:bg-[#141517] [&_.monaco-editor_.margin]:bg-white dark:[&_.monaco-editor_.margin]:bg-[#141517]"
+                value={activeSettingJson}
+                onChange={(value) => setActiveSettingJson(value || '{\n  \n}')}
+                options={editorOptions}
+                theme="customDarkTheme"
+                beforeMount={beforeMount}
+                className="[&_.monaco-editor]:bg-[#1E1E1E] [&_.monaco-editor_.margin]:bg-[#1E1E1E]"
                 onValidate={handleEditorValidation}
               />
             </div>
           </div>
-          {parsedSettings.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-[#1e1e1e] dark:text-white">Active Setting</Label>
-              <Select
-                value={selectedSettingId}
-                onValueChange={setSelectedSettingId}
-              >
-                <SelectTrigger className="bg-white border-[#e5e5e5] text-[#1e1e1e] dark:bg-[#141517] dark:border-[#2A2A2F] dark:text-white">
-                  <SelectValue placeholder="Select active setting" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-[#e5e5e5] dark:bg-[#1C1C1F] dark:border-[#2A2A2F]">
-                  {parsedSettings.map((setting) => (
-                    <SelectItem 
-                      key={setting.id} 
-                      value={setting.id}
-                      className="text-[#1e1e1e] hover:bg-[#f3f3f3] dark:text-white dark:focus:bg-[#2A2A35]"
-                    >
-                      {setting.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
           {jsonError && (
             <div className="text-red-500 text-sm dark:text-red-400">{jsonError}</div>
           )}
